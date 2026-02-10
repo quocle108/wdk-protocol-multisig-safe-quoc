@@ -20,7 +20,7 @@ import { WalletAccountReadOnly } from '@tetherto/wdk-wallet'
 
 import { WalletAccountReadOnlyEvm } from '@tetherto/wdk-wallet-evm'
 
-import { Safe4337Pack } from '@jonpdunne/relay-kit'
+import { Safe4337Pack } from '@wdk-safe-global/relay-kit'
 
 import SafeApiKit from '@safe-global/api-kit'
 
@@ -43,9 +43,9 @@ import SafeApiKit from '@safe-global/api-kit'
 /** @typedef {import('@safe-global/types-kit').SafeOperationResponse} SafeOperationResponse */
 /** @typedef {import('@safe-global/types-kit').SafeMessage} SafeMessage */
 
-/** @typedef {import('@jonpdunne/relay-kit').PaymasterOptions} PaymasterOptions */
-/** @typedef {import('@jonpdunne/relay-kit').ExistingSafeOptions} ExistingSafeOptions */
-/** @typedef {import('@jonpdunne/relay-kit').PredictedSafeOptions} PredictedSafeOptions */
+/** @typedef {import('@wdk-safe-global/relay-kit').PaymasterOptions} PaymasterOptions */
+/** @typedef {import('@wdk-safe-global/relay-kit').ExistingSafeOptions} ExistingSafeOptions */
+/** @typedef {import('@wdk-safe-global/relay-kit').PredictedSafeOptions} PredictedSafeOptions */
 
 /**
  * @typedef {Object} ProposeOptions
@@ -549,6 +549,30 @@ export default class WalletAccountReadOnlyEvmMultisigSafe extends WalletAccountR
     const safeAddress = await this.getAddress()
 
     return await apiKit.getMessages(safeAddress, options)
+  }
+
+  /**
+   * Estimates the gas cost for deploying the Safe.
+   *
+   * @returns {Promise<{fee: bigint}>} Estimated deployment fee in wei
+   * @throws {Error} If Safe is already deployed
+   */
+  async quoteDeploy () {
+    const isDeployed = await this.isDeployed()
+
+    if (isDeployed) {
+      throw new Error('Safe is already deployed')
+    }
+
+    const safe4337Pack = await this._getSafe4337Pack()
+    const deploymentTx = await safe4337Pack.protocolKit.createSafeDeploymentTransaction()
+
+    const evmReadOnlyAccount = await this._getEvmReadOnlyAccount()
+    return await evmReadOnlyAccount.quoteSendTransaction({
+      to: deploymentTx.to,
+      value: BigInt(deploymentTx.value),
+      data: deploymentTx.data
+    })
   }
 
   /**

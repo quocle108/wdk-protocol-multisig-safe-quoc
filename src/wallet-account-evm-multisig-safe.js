@@ -236,28 +236,27 @@ export default class WalletAccountEvmMultisigSafe extends WalletAccountReadOnlyE
   }
 
   /**
-   * Deploys the Safe if not already deployed.
+   * Deploys the Safe.
+   * Requires native ETH in the signer's EOA account to pay for gas.
    *
-   * @returns {Promise<{deployed: boolean, txHash: string | null}>} Deployment result
+   * @returns {Promise<TransactionResult>} Deployment result with transaction hash and fee
+   * @throws {Error} If Safe is already deployed
    */
   async deploy () {
     const isDeployed = await this.isDeployed()
 
     if (isDeployed) {
-      return { deployed: true, txHash: null }
+      throw new Error('Safe is already deployed')
     }
 
     const safe4337Pack = await this._getSafe4337Pack()
-
     const deploymentTx = await safe4337Pack.protocolKit.createSafeDeploymentTransaction()
 
-    const txHash = await this._signerAccount.sendTransaction({
+    return await this._signerAccount.sendTransaction({
       to: deploymentTx.to,
       value: BigInt(deploymentTx.value),
       data: deploymentTx.data
     })
-
-    return { deployed: true, txHash: txHash.hash }
   }
 
   /**

@@ -673,4 +673,65 @@ describe('WalletAccountReadOnlyEvmMultisigSafe', () => {
       expect(nonce1).toBe(nonce2)
     })
   })
+
+  describe('quoteDeploy', () => {
+    test('should return fee estimate for deployment', async () => {
+      const account = new WalletAccountReadOnlyEvmMultisigSafe(null, {
+        ...MOCK_CONFIG,
+        options: {
+          safeAddress: MOCK_SAFE_ADDRESS
+        }
+      })
+
+      const mockPack = createMockSafe4337Pack({
+        protocolKit: {
+          getAddress: jest.fn().mockResolvedValue(MOCK_SAFE_ADDRESS),
+          isSafeDeployed: jest.fn().mockResolvedValue(false),
+          createSafeDeploymentTransaction: jest.fn().mockResolvedValue({
+            to: '0xDeployFactory',
+            value: '0',
+            data: '0xdeploydata'
+          })
+        }
+      })
+      account._safe4337Pack = mockPack
+
+      const mockEvmReadOnly = {
+        quoteSendTransaction: jest.fn().mockResolvedValue({ fee: 210000n })
+      }
+      account._getEvmReadOnlyAccount = jest.fn().mockResolvedValue(mockEvmReadOnly)
+
+      const result = await account.quoteDeploy()
+
+      expect(result).toBeDefined()
+      expect(result.fee).toBe(210000n)
+      expect(mockPack.protocolKit.createSafeDeploymentTransaction).toHaveBeenCalled()
+      expect(mockEvmReadOnly.quoteSendTransaction).toHaveBeenCalledWith({
+        to: '0xDeployFactory',
+        value: 0n,
+        data: '0xdeploydata'
+      })
+    })
+
+    test('should throw if Safe is already deployed', async () => {
+      const account = new WalletAccountReadOnlyEvmMultisigSafe(null, {
+        ...MOCK_CONFIG,
+        options: {
+          safeAddress: MOCK_SAFE_ADDRESS
+        }
+      })
+
+      const mockPack = createMockSafe4337Pack({
+        protocolKit: {
+          getAddress: jest.fn().mockResolvedValue(MOCK_SAFE_ADDRESS),
+          isSafeDeployed: jest.fn().mockResolvedValue(true)
+        }
+      })
+      account._safe4337Pack = mockPack
+
+      await expect(account.quoteDeploy())
+        .rejects.toThrow('Safe is already deployed')
+    })
+  })
+
 })

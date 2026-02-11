@@ -701,13 +701,14 @@ describe('WalletAccountEvmMultisigSafe', () => {
       account._apiKit = mockApiKit
       account._safeAddress = MOCK_SAFE_ADDRESS
       account.validateSignerIsOwner = jest.fn().mockResolvedValue(undefined)
+      account._initSafe4337Pack = jest.fn().mockResolvedValue(mockPack)
 
       const tx = { to: ACCOUNT_2.address, value: '1000', data: '0x' }
       const result = await account.sendTransaction(tx)
 
       expect(result).toBeDefined()
       expect(result.hash).toBe(MOCK_USER_OP_HASH)
-      expect(result.fee).toBe(350000000000000n)
+      expect(result.fee).toBe(250000000000000n)
       expect(result.confirmations).toBe(1)
       expect(result.threshold).toBe(1)
       expect(result.executed).toBe(true)
@@ -732,6 +733,7 @@ describe('WalletAccountEvmMultisigSafe', () => {
       account._apiKit = mockApiKit
       account._safeAddress = MOCK_SAFE_ADDRESS
       account.validateSignerIsOwner = jest.fn().mockResolvedValue(undefined)
+      account._initSafe4337Pack = jest.fn().mockResolvedValue(mockPack)
 
       const tx = { to: ACCOUNT_2.address, value: '1000', data: '0x' }
       const result = await account.sendTransaction(tx)
@@ -759,6 +761,7 @@ describe('WalletAccountEvmMultisigSafe', () => {
       account._apiKit = mockApiKit
       account._safeAddress = MOCK_SAFE_ADDRESS
       account.validateSignerIsOwner = jest.fn().mockResolvedValue(undefined)
+      account._initSafe4337Pack = jest.fn().mockResolvedValue(mockPack)
 
       const tx = { to: ACCOUNT_2.address, value: '1000', data: '0x' }
       const result = await account.sendTransaction(tx)
@@ -793,6 +796,7 @@ describe('WalletAccountEvmMultisigSafe', () => {
       sponsoredAccount._apiKit = mockApiKit
       sponsoredAccount._safeAddress = MOCK_SAFE_ADDRESS
       sponsoredAccount.validateSignerIsOwner = jest.fn().mockResolvedValue(undefined)
+      sponsoredAccount._initSafe4337Pack = jest.fn().mockResolvedValue(mockPack)
 
       const tx = { to: ACCOUNT_2.address, value: '1000', data: '0x' }
       await sponsoredAccount.sendTransaction(tx)
@@ -856,6 +860,7 @@ describe('WalletAccountEvmMultisigSafe', () => {
       account._apiKit = mockApiKit
       account._safeAddress = MOCK_SAFE_ADDRESS
       account.validateSignerIsOwner = jest.fn().mockResolvedValue(undefined)
+      account._initSafe4337Pack = jest.fn().mockResolvedValue(mockPack)
 
       const transferOptions = {
         token: '0x956962C34687A954e611A83619ABaA37Ce6bC78A',
@@ -866,7 +871,7 @@ describe('WalletAccountEvmMultisigSafe', () => {
 
       expect(result).toBeDefined()
       expect(result.hash).toBe(MOCK_USER_OP_HASH)
-      expect(result.fee).toBe(350000000000000n)
+      expect(result.fee).toBe(250000000000000n)
       expect(result.executed).toBe(true)
     })
 
@@ -896,6 +901,7 @@ describe('WalletAccountEvmMultisigSafe', () => {
       sponsoredAccount._apiKit = mockApiKit
       sponsoredAccount._safeAddress = MOCK_SAFE_ADDRESS
       sponsoredAccount.validateSignerIsOwner = jest.fn().mockResolvedValue(undefined)
+      sponsoredAccount._initSafe4337Pack = jest.fn().mockResolvedValue(mockPack)
 
       const transferOptions = {
         token: '0x956962C34687A954e611A83619ABaA37Ce6bC78A',

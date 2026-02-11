@@ -608,7 +608,6 @@ export default class WalletAccountReadOnlyEvmMultisigSafe extends WalletAccountR
    * @returns {Promise<bigint>} Gas cost in paymaster token units or wei
    */
   async _estimateUserOperationGas (transactions, options = {}) {
-    const safe4337Pack = await this._getSafe4337Pack(options)
     const address = await this.getAddress()
 
     const isSponsored = options.isSponsored ?? this._config.paymasterOptions?.isSponsored
@@ -624,36 +623,44 @@ export default class WalletAccountReadOnlyEvmMultisigSafe extends WalletAccountR
     }))
 
     try {
-      const feeEstimator = this._createEstimationFeeEstimator()
+      // Use a no-paymaster pack for gas estimation to avoid paymaster
+      // validation issues (e.g. Candide requiring on-chain token allowance
+      // before pm_getPaymasterStubData will succeed, or AA33 revert when
+      // paymasterAndData is only the 20-byte address without stub data).
+      const estimationPack = await this._initSafe4337Pack(options, { skipPaymaster: true })
+      const feeEstimator = this._createFeeEstimator()
       const createTxOptions = {
         transactions: formattedTxs.map(tx => ({ from: address, ...tx })),
         options: { feeEstimator }
       }
 
-      if (paymasterTokenAddress) {
-        createTxOptions.options.amountToApprove = BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')
-      }
-
-      const safeOperation = await safe4337Pack.createTransaction(createTxOptions)
+      const safeOperation = await estimationPack.createTransaction(createTxOptions)
 
       const {
         callGasLimit,
         verificationGasLimit,
         preVerificationGas,
-        paymasterVerificationGasLimit,
-        paymasterPostOpGasLimit,
         maxFeePerGas
       } = safeOperation.userOperation
+
+      // Add paymaster gas overhead since we estimated without paymaster.
+      // These values cover typical ERC-20 paymaster verification and postOp costs.
+      const PAYMASTER_VERIFICATION_GAS = 100000n
+      const PAYMASTER_POST_OP_GAS = 80000n
+      const paymasterOverhead = (paymasterTokenAddress || isSponsored)
+        ? PAYMASTER_VERIFICATION_GAS + PAYMASTER_POST_OP_GAS
+        : 0n
 
       const totalGas = BigInt(callGasLimit) +
         BigInt(verificationGasLimit) +
         BigInt(preVerificationGas) +
-        BigInt(paymasterVerificationGasLimit || 0) +
-        BigInt(paymasterPostOpGasLimit || 0)
+        paymasterOverhead
 
       const gasCostWei = totalGas * BigInt(maxFeePerGas)
 
       if (paymasterTokenAddress) {
+        // Use the regular paymaster-enabled pack for exchange rate query
+        const safe4337Pack = await this._getSafe4337Pack(options)
         const exchangeRate = await safe4337Pack.getTokenExchangeRate(
           paymasterTokenAddress
         )
@@ -703,7 +710,7 @@ export default class WalletAccountReadOnlyEvmMultisigSafe extends WalletAccountR
    * @param {ProposeOptions} [options] - Options for paymaster override
    * @returns {Promise<Safe4337Pack>} The initialized Safe4337Pack instance
    */
-  async _initSafe4337Pack (proposeOptions = {}) {
+  async _initSafe4337Pack (proposeOptions = {}, { skipPaymaster = false } = {}) {
     const safeOptions = this._config.options
 
     const initOptions = {
@@ -740,7 +747,7 @@ export default class WalletAccountReadOnlyEvmMultisigSafe extends WalletAccountR
       }
     }
 
-    if (this._config.paymasterOptions) {
+    if (this._config.paymasterOptions && !skipPaymaster) {
       const { paymasterUrl, paymasterAddress } = this._config.paymasterOptions
 
       const isSponsored = proposeOptions.isSponsored ?? this._config.paymasterOptions.isSponsored
@@ -806,25 +813,6 @@ export default class WalletAccountReadOnlyEvmMultisigSafe extends WalletAccountR
   _createFeeEstimator () {
     const chainIdHex = '0x' + this._config.chainId.toString(16)
     return new GenericFeeEstimator(this._config.provider, chainIdHex)
-  }
-
-  /**
-   * Creates a fee estimator for gas cost quoting only.
-   * Strips paymasterOptions so GenericFeeEstimator only returns gas prices
-   * without calling pm_getPaymasterStubData (which some bundlers like Candide
-   * reject if the Safe hasn't yet approved the paymaster).
-   *
-   * @protected
-   * @returns {Object} IFeeEstimator-compatible object
-   */
-  _createEstimationFeeEstimator () {
-    const inner = this._createFeeEstimator()
-    return {
-      defaultVerificationGasLimitOverhead: inner.defaultVerificationGasLimitOverhead,
-      preEstimateUserOperationGas: (props) =>
-        inner.preEstimateUserOperationGas({ ...props, paymasterOptions: undefined }),
-      postEstimateUserOperationGas: () => Promise.resolve({})
-    }
   }
 
   /**

@@ -624,10 +624,17 @@ export default class WalletAccountReadOnlyEvmMultisigSafe extends WalletAccountR
     }))
 
     try {
-      const safeOperation = await safe4337Pack.createTransaction({
+      const feeEstimator = this._createEstimationFeeEstimator()
+      const createTxOptions = {
         transactions: formattedTxs.map(tx => ({ from: address, ...tx })),
-        options: { feeEstimator: this._createFeeEstimator() }
-      })
+        options: { feeEstimator }
+      }
+
+      if (paymasterTokenAddress) {
+        createTxOptions.options.amountToApprove = BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')
+      }
+
+      const safeOperation = await safe4337Pack.createTransaction(createTxOptions)
 
       const {
         callGasLimit,
@@ -799,6 +806,25 @@ export default class WalletAccountReadOnlyEvmMultisigSafe extends WalletAccountR
   _createFeeEstimator () {
     const chainIdHex = '0x' + this._config.chainId.toString(16)
     return new GenericFeeEstimator(this._config.provider, chainIdHex)
+  }
+
+  /**
+   * Creates a fee estimator for gas cost quoting only.
+   * Strips paymasterOptions so GenericFeeEstimator only returns gas prices
+   * without calling pm_getPaymasterStubData (which some bundlers like Candide
+   * reject if the Safe hasn't yet approved the paymaster).
+   *
+   * @protected
+   * @returns {Object} IFeeEstimator-compatible object
+   */
+  _createEstimationFeeEstimator () {
+    const inner = this._createFeeEstimator()
+    return {
+      defaultVerificationGasLimitOverhead: inner.defaultVerificationGasLimitOverhead,
+      preEstimateUserOperationGas: (props) =>
+        inner.preEstimateUserOperationGas({ ...props, paymasterOptions: undefined }),
+      postEstimateUserOperationGas: () => Promise.resolve({})
+    }
   }
 
   /**

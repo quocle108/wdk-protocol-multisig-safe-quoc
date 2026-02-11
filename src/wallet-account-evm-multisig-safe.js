@@ -372,15 +372,14 @@ export default class WalletAccountEvmMultisigSafe extends WalletAccountReadOnlyE
     }))
 
     const createTxOptions = {
-      transactions: formattedTxs.map(tx => ({ from: address, ...tx }))
+      transactions: formattedTxs.map(tx => ({ from: address, ...tx })),
+      options: { feeEstimator: this._createFeeEstimator() }
     }
 
     const isSponsored = options.isSponsored ?? this._config.paymasterOptions?.isSponsored
 
     if (options.amountToApprove && !isSponsored) {
-      createTxOptions.options = {
-        amountToApprove: BigInt(options.amountToApprove.toString())
-      }
+      createTxOptions.options.amountToApprove = BigInt(options.amountToApprove.toString())
     }
 
     const safeOperation = await safe4337Pack.createTransaction(createTxOptions)

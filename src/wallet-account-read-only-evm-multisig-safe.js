@@ -20,7 +20,7 @@ import { WalletAccountReadOnly } from '@tetherto/wdk-wallet'
 
 import { WalletAccountReadOnlyEvm } from '@tetherto/wdk-wallet-evm'
 
-import { Safe4337Pack } from '@wdk-safe-global/relay-kit'
+import { Safe4337Pack, GenericFeeEstimator } from '@wdk-safe-global/relay-kit'
 
 import SafeApiKit from '@safe-global/api-kit'
 
@@ -625,7 +625,8 @@ export default class WalletAccountReadOnlyEvmMultisigSafe extends WalletAccountR
 
     try {
       const safeOperation = await safe4337Pack.createTransaction({
-        transactions: formattedTxs.map(tx => ({ from: address, ...tx }))
+        transactions: formattedTxs.map(tx => ({ from: address, ...tx })),
+        options: { feeEstimator: this._createFeeEstimator() }
       })
 
       const {
@@ -787,6 +788,17 @@ export default class WalletAccountReadOnlyEvmMultisigSafe extends WalletAccountR
   async _getEvmReadOnlyAccount () {
     const address = await this.getAddress()
     return new WalletAccountReadOnlyEvm(address, this._config)
+  }
+
+  /**
+   * Creates a GenericFeeEstimator for bundler-agnostic gas estimation.
+   *
+   * @protected
+   * @returns {GenericFeeEstimator}
+   */
+  _createFeeEstimator () {
+    const chainIdHex = '0x' + this._config.chainId.toString(16)
+    return new GenericFeeEstimator(this._config.provider, chainIdHex)
   }
 
   /**

@@ -627,7 +627,9 @@ export default class WalletAccountReadOnlyEvmMultisigSafe extends WalletAccountR
       // validation issues (e.g. Candide requiring on-chain token allowance
       // before pm_getPaymasterStubData will succeed, or AA33 revert when
       // paymasterAndData is only the 20-byte address without stub data).
+      console.log('[DEBUG] _estimateUserOperationGas: calling _initSafe4337Pack with skipPaymaster: true')
       const estimationPack = await this._initSafe4337Pack(options, { skipPaymaster: true })
+      console.log('[DEBUG] _estimateUserOperationGas: pack created successfully')
       const feeEstimator = this._createFeeEstimator()
       const createTxOptions = {
         transactions: formattedTxs.map(tx => ({ from: address, ...tx })),
@@ -711,6 +713,7 @@ export default class WalletAccountReadOnlyEvmMultisigSafe extends WalletAccountR
    * @returns {Promise<Safe4337Pack>} The initialized Safe4337Pack instance
    */
   async _initSafe4337Pack (proposeOptions = {}, { skipPaymaster = false } = {}) {
+    console.log('[DEBUG] _initSafe4337Pack: skipPaymaster =', skipPaymaster, ', hasPaymasterConfig =', !!this._config.paymasterOptions)
     const safeOptions = this._config.options
 
     const initOptions = {
@@ -748,6 +751,7 @@ export default class WalletAccountReadOnlyEvmMultisigSafe extends WalletAccountR
     }
 
     if (this._config.paymasterOptions && !skipPaymaster) {
+      console.log('[DEBUG] _initSafe4337Pack: ADDING paymaster options to initOptions')
       const { paymasterUrl, paymasterAddress } = this._config.paymasterOptions
 
       const isSponsored = proposeOptions.isSponsored ?? this._config.paymasterOptions.isSponsored
@@ -776,6 +780,7 @@ export default class WalletAccountReadOnlyEvmMultisigSafe extends WalletAccountR
       }
     }
 
+    console.log('[DEBUG] _initSafe4337Pack: initOptions.paymasterOptions =', initOptions.paymasterOptions ? 'SET' : 'NOT SET')
     return await Safe4337Pack.init(initOptions)
   }
 

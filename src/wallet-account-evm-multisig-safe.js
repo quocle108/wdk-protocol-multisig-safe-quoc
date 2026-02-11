@@ -371,7 +371,7 @@ export default class WalletAccountEvmMultisigSafe extends WalletAccountReadOnlyE
       data: tx.data || '0x'
     }))
 
-    const feeEstimator = this._createFeeEstimator()
+    const feeEstimator = this._createProposeFeeEstimator()
 
     const createTxOptions = {
       transactions: formattedTxs.map(tx => ({ from: address, ...tx })),

@@ -821,6 +821,38 @@ export default class WalletAccountReadOnlyEvmMultisigSafe extends WalletAccountR
   }
 
   /**
+   * Creates a fee estimator for the propose step that skips pm_getPaymasterStubData
+   * (which Candide rejects when the Safe has no on-chain token allowance) while
+   * still calling pm_getPaymasterData in the post-estimation phase to obtain the
+   * real paymasterAndData for signing.
+   *
+   * @protected
+   * @returns {Object} A fee estimator compatible with the relay-kit interface
+   */
+  _createProposeFeeEstimator () {
+    const inner = this._createFeeEstimator()
+    return {
+      defaultVerificationGasLimitOverhead: inner.defaultVerificationGasLimitOverhead,
+      preEstimateUserOperationGas: async (props) => {
+        // Skip pm_getPaymasterStubData by stripping paymasterOptions.
+        // Return only gas prices so eth_estimateUserOperationGas can run
+        // without paymaster validation.
+        const result = await inner.preEstimateUserOperationGas({
+          ...props,
+          paymasterOptions: undefined
+        })
+        // Clear paymasterAndData so the bundler estimates without paymaster
+        return { ...result, paymasterAndData: '0x' }
+      },
+      postEstimateUserOperationGas: async (props) => {
+        // Call pm_getPaymasterData with the real paymasterOptions to get
+        // the final paymasterAndData (paymaster signature).
+        return await inner.postEstimateUserOperationGas(props)
+      }
+    }
+  }
+
+  /**
    * Validates the configuration.
    *
    * @private

@@ -20,7 +20,7 @@ import { WalletAccountReadOnly } from '@tetherto/wdk-wallet'
 
 import { WalletAccountReadOnlyEvm } from '@tetherto/wdk-wallet-evm'
 
-import { Safe4337Pack } from '@wdk-safe-global/relay-kit'
+import { Safe4337Pack, GenericFeeEstimator } from '@wdk-safe-global/relay-kit'
 
 import SafeApiKit from '@safe-global/api-kit'
 
@@ -600,16 +600,62 @@ export default class WalletAccountReadOnlyEvmMultisigSafe extends WalletAccountR
   }
 
   /**
+   * Creates a GenericFeeEstimator for non-Pimlico bundlers.
+   *
+   * @protected
+   * @returns {GenericFeeEstimator} The fee estimator
+   */
+  _createFeeEstimator () {
+    const chainIdHex = '0x' + this._config.chainId.toString(16)
+    return new GenericFeeEstimator(this._config.provider, chainIdHex)
+  }
+
+  /**
+   * Creates a SafeOperation from transactions.
+   * This is the shared method used by both fee estimation and propose
+   * to ensure they operate on the same transaction structure.
+   *
+   * @protected
+   * @param {EvmTransaction | EvmTransaction[]} transaction - The transaction(s)
+   * @param {ProposeOptions} [options] - Options for paymaster override
+   * @returns {Promise<Object>} The SafeOperation object
+   */
+  async _createSafeOperation (transaction, options = {}) {
+    const safe4337Pack = await this._getSafe4337Pack(options)
+    const feeEstimator = this._createFeeEstimator()
+    const address = await this.getAddress()
+
+    const transactions = Array.isArray(transaction) ? transaction : [transaction]
+    const formattedTxs = transactions.map(tx => ({
+      to: tx.to,
+      value: tx.value?.toString() || '0',
+      data: tx.data || '0x'
+    }))
+
+    const createTxOptions = {
+      transactions: formattedTxs.map(tx => ({ from: address, ...tx })),
+      options: { feeEstimator }
+    }
+
+    const isSponsored = options.isSponsored ?? this._config.paymasterOptions?.isSponsored
+
+    if (options.amountToApprove && !isSponsored) {
+      createTxOptions.options.amountToApprove = BigInt(options.amountToApprove.toString())
+    }
+
+    return await safe4337Pack.createTransaction(createTxOptions)
+  }
+
+  /**
    * Estimates UserOperation gas cost.
    *
    * @private
-   * @param {EvmTransaction[]} transactions - Array of transactions
+   * @param {EvmTransaction | EvmTransaction[]} transaction - The transaction(s)
    * @param {ProposeOptions} [options] - Options for paymaster override
    * @returns {Promise<bigint>} Gas cost in paymaster token units or wei
    */
-  async _estimateUserOperationGas (transactions, options = {}) {
+  async _estimateUserOperationGas (transaction, options = {}) {
     const safe4337Pack = await this._getSafe4337Pack(options)
-    const address = await this.getAddress()
 
     const isSponsored = options.isSponsored ?? this._config.paymasterOptions?.isSponsored
 
@@ -617,16 +663,8 @@ export default class WalletAccountReadOnlyEvmMultisigSafe extends WalletAccountR
       ? (options.paymasterTokenAddress ?? this._config.paymasterOptions?.paymasterTokenAddress)
       : null
 
-    const formattedTxs = transactions.map(tx => ({
-      to: tx.to,
-      value: tx.value?.toString() || '0',
-      data: tx.data || '0x'
-    }))
-
     try {
-      const safeOperation = await safe4337Pack.createTransaction({
-        transactions: formattedTxs.map(tx => ({ from: address, ...tx }))
-      })
+      const safeOperation = await this._createSafeOperation(transaction, options)
 
       const {
         callGasLimit,

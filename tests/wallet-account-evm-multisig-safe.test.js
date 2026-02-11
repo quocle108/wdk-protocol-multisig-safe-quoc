@@ -482,7 +482,8 @@ describe('WalletAccountEvmMultisigSafe', () => {
       await sponsoredAccount.propose(tx, { amountToApprove: 500000n })
 
       const callArgs = mockPack.createTransaction.mock.calls[0][0]
-      expect(callArgs.options).toBeUndefined()
+      expect(callArgs.options.amountToApprove).toBeUndefined()
+      expect(callArgs.options.feeEstimator).toBeDefined()
 
       sponsoredAccount.dispose()
     })
@@ -512,7 +513,7 @@ describe('WalletAccountEvmMultisigSafe', () => {
       await erc20Account.propose(tx, { isSponsored: true, amountToApprove: 500000n })
 
       const callArgs = mockPack.createTransaction.mock.calls[0][0]
-      expect(callArgs.options).toBeUndefined()
+      expect(callArgs.options.amountToApprove).toBeUndefined()
 
       erc20Account.dispose()
     })
@@ -798,7 +799,7 @@ describe('WalletAccountEvmMultisigSafe', () => {
       await sponsoredAccount.sendTransaction(tx)
 
       const callArgs = mockPack.createTransaction.mock.calls[0][0]
-      expect(callArgs.options).toBeUndefined()
+      expect(callArgs.options.amountToApprove).toBeUndefined()
 
       sponsoredAccount.dispose()
     })
@@ -835,7 +836,7 @@ describe('WalletAccountEvmMultisigSafe', () => {
       await erc20Account.sendTransaction(tx, { isSponsored: true })
 
       const callArgs = mockPack.createTransaction.mock.calls[0][0]
-      expect(callArgs.options).toBeUndefined()
+      expect(callArgs.options.amountToApprove).toBeUndefined()
 
       erc20Account.dispose()
     })
@@ -905,7 +906,7 @@ describe('WalletAccountEvmMultisigSafe', () => {
       await sponsoredAccount.transfer(transferOptions)
 
       const callArgs = mockPack.createTransaction.mock.calls[0][0]
-      expect(callArgs.options).toBeUndefined()
+      expect(callArgs.options.amountToApprove).toBeUndefined()
 
       sponsoredAccount.dispose()
     })
@@ -946,7 +947,7 @@ describe('WalletAccountEvmMultisigSafe', () => {
       await erc20Account.transfer(transferOptions, { isSponsored: true })
 
       const callArgs = mockPack.createTransaction.mock.calls[0][0]
-      expect(callArgs.options).toBeUndefined()
+      expect(callArgs.options.amountToApprove).toBeUndefined()
 
       erc20Account.dispose()
     })
